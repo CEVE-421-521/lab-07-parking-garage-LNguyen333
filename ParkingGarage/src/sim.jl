@@ -22,7 +22,7 @@ end
 
 """Throw an error if you try to use the abstract policy type"""
 function get_action(x::ParkingGarageState, policy::AbstractPolicy)
-    throw("You need to implement a concrete policy type!")
+    error("You need to implement a concrete policy type!")
 end
 
 """
@@ -41,8 +41,17 @@ If we are following the adaptive policy, then the rule is slightly more complica
 We add `n_levels` in the first year. Then, every future year we compare the capacity and demand. If the demand is greater than the capacity, we add a level.
 """
 function get_action(x::ParkingGarageState, policy::AdaptivePolicy)
-    # THIS IS THE FUNCTION YOU NEED TO REPLACE!
-    throw("You need to implement the adaptive policy yourself")
+    if x.year == 1
+        return ParkingGarageAction(policy.n_levels)
+    else
+        capacity = calculate_capacity(x)
+        demand = calculate_demand(x.year, demand_growth_rate)
+        if demand > capacity
+            return ParkingGarageAction(policy.n_levels+1)
+        else
+            return ParkingGarageAction(0)
+        end
+    end
 end
 
 """

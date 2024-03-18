@@ -1,6 +1,6 @@
 ---
 title: "Lab 7: Parking Garage Case Study"
-author: "Your Name"
+author: "Leanh Nguyen"
 jupyter: julia-1.10
 date: 2024-03-08
 categories: [Lab]
@@ -10,22 +10,26 @@ format:
 
     # YOU DO NOT NEED BOTH PDF AND DOCX.
     # COMMENT OR DELETE THE ONE YOU DON'T WANT TO USE.
-    pdf:
-        documentclass: article
-        fontsize: 11pt
-        geometry:
-            - margin=1in  
-        number-sections: true
-        code-line-numbers: true
-    #docx: 
-    #    toc: true
-    #    fig-format: png
-    #    number-sections: true
-    #`    code-line-numbers: true
+    # pdf:
+    #     documentclass: article
+    #     fontsize: 11pt
+    #     geometry:
+    #         - margin=1in  
+    #     number-sections: true
+    #     code-line-numbers: true
+    docx: 
+       toc: true
+       fig-format: png
+       number-sections: true
+    `    code-line-numbers: true
 
 date-format: "ddd., MMM. D"
 references: references.bib
 ---
+
+# Setup
+
+## Load packages
 
 
 ```{julia}
@@ -40,3 +44,148 @@ using Plots
 Plots.default(; margin=5Plots.mm)
 ```
 
+## Formal problem framing
+
+The paper uses an exponential growth model for demand, but we'll use a linear one.
+
+```{julia}
+#| code-fold: true
+let
+    sow = ParkingGarageSOW()
+    years = 1:(sow.n_years)
+    demand = [
+        ParkingGarage.calculate_demand(year, sow.demand_growth_rate) for year in years
+    ]
+    plot(
+        years,
+        demand;
+        ylabel="Demand [cars/day]",
+        xlabel="Year",
+        legend=false,
+        title="Demand Growth Rate: $(sow.demand_growth_rate) Cars/Year",
+        size=(800, 400),
+        marker=:circle,
+    )
+end
+```
+
+# Static case
+
+This function assumes that the demand is deterministic and that the number of levels is fixed.
+The decision variable is the number of levels of the garage to build.
+If we consider a single SOW, we can calculate the NPV of the profits for a given policy.
+
+```{julia}
+let
+    sow = ParkingGarageSOW(; demand_growth_rate=80.0, n_years=20, discount_rate=0.12)
+    n_levels = 2:12
+    policies = [StaticPolicy(i) for i in n_levels]
+    println(policies)
+    profits = [simulate(sow, policy) for policy in policies]
+    plot(
+        n_levels,
+        profits;
+        ylabel="NPV Profits [Million USD]",
+        xlabel="Number of levels",
+        legend=false,
+        title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth",
+        size=(800, 400),
+        marker=:circle,
+        xticks=n_levels,
+    )
+    hline!([0])
+end
+```
+
+```{julia} 
+let
+    sow = ParkingGarageSOW(; demand_growth_rate=80.0, n_years=20, discount_rate=0.12)
+    n_levels = 2:12
+    policies = [AdaptivePolicy(i) for i in n_levels]
+    println(policies)
+    profits = [simulate(sow, policy) for policy in policies]
+    plot(
+        n_levels,
+        profits;
+        ylabel="NPV Profits [Million USD]",
+        xlabel="Number of levels",
+        legend=false,
+        title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth",
+        size=(800, 400),
+        marker=:circle,
+        xticks=n_levels,
+    )
+    hline!([0])
+end
+```
+
+## Uncertainty
+
+Figure 1 of @deneufville_parkinggarage:2006 shows how the NPV changes when uncertainty is added to the model.
+Reproduce this figure, using our model.
+Specifically:
+
+1. Generate an ensemble of SOWs. Justify how you are sampling the three parameters (`n_years`, `demand_growth_rate`, and `discount_rate`). I suggest to keep `n_years` as a constant, and perhaps to keep the discount rate constant as well.
+
+```{julia}
+function generate_sows(n_sows::Int, n_years::Int, demand_growth_rate::Float64, discount_rate::Float64)
+    sow_list = []
+    for _ in 1:n_sows
+        push!(sow_list, ParkingGarageSOW(n_years=n_years, demand_growth_rate=demand_growth_rate, discount_rate=discount_rate))
+    end
+    return sow_list
+end
+```
+
+1. For each SOW, calculate the NPV for each policy.
+
+```{julia}
+
+# Define n_levels and create policies1 and policies2
+n_levels = 2:12
+policies1 = [AdaptivePolicy(i) for i in n_levels]
+policies2 = [StaticPolicy(i) for i in n_levels]
+
+# Create an array of AbstractPolicy type and append policies1 and policies2
+policies = AbstractPolicy[]
+append!(policies, policies1)
+append!(policies, policies2)
+
+# Now policies contains both AdaptivePolicy and StaticPolicy objects
+println(policies)
+
+```
+
+1. Calculate the average NPV for each number of levels and plot.
+
+```{julia}
+# Main function to simulate and plot NPV
+
+```
+
+# Adaptive case
+
+The static case sheds some light on decision making under uncertainty.
+However, the point of the @denuefville_parkinggarage:2006 paper is to illustrate the value of flexibility in decision making.
+
+To implement this, you'll need to get your hands a bit dirty with the source code.
+Specifically, you need to edit the `function get_action(x::ParkingGarageState, policy::AdaptivePolicy)` function in `ParkingGarage/src/sim.jl`.
+You'll need to use `if...else...end` statements to implement the adaptive policy.
+We'll talk about this in class!
+
+Once you've implemented this function, you can simulate the adaptive policy and compare the NPV to the static policy.
+Compare the fixed and adaptive policies for both the deterministic (single SOW) and stochastic (ensemble of SOWs) cases.
+Plot the NPV as a function of the number of levels for each case.
+
+
+```{julia}
+# Parameters
+n_sows = 100
+n_years = 20
+demand_growth_rate = 80.0
+discount_rate = 0.12
+levels = 2:12  # Number of levels range
+
+# Simulate and plot NPV
+
+```

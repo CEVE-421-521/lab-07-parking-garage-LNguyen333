@@ -2,7 +2,7 @@
 title: "Lab 7: Parking Garage Case Study"
 subtitle: ""
 week: 9
-author: "CEVE 421/521"
+author: "Leanh Nguyen CEVE 421/521"
 jupyter: julia-1.10
 date: 2024-03-08
 categories: [Lab]
@@ -12,18 +12,18 @@ format:
 
     # YOU DO NOT NEED BOTH PDF AND DOCX.
     # COMMENT OR DELETE THE ONE YOU DON'T WANT TO USE.
-    pdf:
-        documentclass: article
-        fontsize: 11pt
-        geometry:
-            - margin=1in  
-        number-sections: true
-        code-line-numbers: true
-    #docx: 
-    #    toc: true
-    #    fig-format: png
-    #    number-sections: true
-    #`    code-line-numbers: true
+    # pdf:
+    #     documentclass: article
+    #     fontsize: 11pt
+    #     geometry:
+    #         - margin=1in  
+    #     number-sections: true
+    #     code-line-numbers: true
+    docx: 
+       toc: true
+       fig-format: png
+       number-sections: true
+    `    code-line-numbers: true
 
 date-format: "ddd., MMM. D"
 references: references.bib
@@ -146,3 +146,26 @@ We'll talk about this in class!
 Once you've implemented this function, you can simulate the adaptive policy and compare the NPV to the static policy.
 Compare the fixed and adaptive policies for both the deterministic (single SOW) and stochastic (ensemble of SOWs) cases.
 Plot the NPV as a function of the number of levels for each case.
+
+
+
+function simulate_and_plot_npv(n_sows::Int, n_years::Int, demand_growth_rate::Float64, discount_rate::Float64, levels)
+    # Generate an ensemble of SOWs
+    sows = generate_sows(n_sows, n_years, demand_growth_rate, discount_rate)
+    
+    # Calculate NPV for each policy
+    static_npvs = calculate_npv_for_policies(sows, levels, StaticPolicy)
+    adaptive_npvs = calculate_npv_for_policies(sows, levels, AdaptivePolicy)
+    
+    # Calculate the average NPV for each number of levels
+    average_static_npvs = calculate_average_npv(static_npvs)
+    average_adaptive_npvs = calculate_average_npv(adaptive_npvs)
+    
+    # Plot the NPV as a function of the number of levels for each case
+    plot(levels, average_static_npvs, label="Static Policy", marker=:circle)
+    plot!(levels, average_adaptive_npvs, label="Adaptive Policy", marker=:square)
+    xlabel!("Number of Levels")
+    ylabel!("Average NPV")
+    title!("Average NPV vs Number of Levels")
+    display(plot)
+end
