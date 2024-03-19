@@ -100,12 +100,12 @@ end
 ```{julia} 
 let
     sow = ParkingGarageSOW(; demand_growth_rate=80.0, n_years=20, discount_rate=0.12)
-    n_levels = 2:12
-    policies = [AdaptivePolicy(i) for i in n_levels]
+    n_levels_init = 2:12
+    policies = [AdaptivePolicy(i) for i in n_levels_init]
     println(policies)
     profits = [simulate(sow, policy) for policy in policies]
     plot(
-        n_levels,
+        n_levels_init,
         profits;
         ylabel="NPV Profits [Million USD]",
         xlabel="Number of levels",
@@ -113,7 +113,7 @@ let
         title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth",
         size=(800, 400),
         marker=:circle,
-        xticks=n_levels,
+        xticks=n_levels_init,
     )
     hline!([0])
 end
@@ -189,3 +189,4 @@ levels = 2:12  # Number of levels range
 # Simulate and plot NPV
 
 ```
+
