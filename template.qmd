@@ -21,7 +21,7 @@ format:
        toc: true
        fig-format: png
        number-sections: true
-    `    code-line-numbers: true
+       code-line-numbers: true
 
 date-format: "ddd., MMM. D"
 references: references.bib
@@ -35,6 +35,8 @@ references: references.bib
 ```{julia}
 using Revise
 using ParkingGarage
+using Random
+using Distributions
 ```
 
 and also regular packages
@@ -69,7 +71,9 @@ let
 end
 ```
 
-# Static case
+# Deterministic Case
+
+## Static Policy
 
 This function assumes that the demand is deterministic and that the number of levels is fixed.
 The decision variable is the number of levels of the garage to build.
@@ -88,14 +92,21 @@ let
         ylabel="NPV Profits [Million USD]",
         xlabel="Number of levels",
         legend=false,
-        title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth",
+        title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth, Static Policy, Deterministic Case",
         size=(800, 400),
+        titlefontsize=10,
         marker=:circle,
         xticks=n_levels,
     )
     hline!([0])
 end
 ```
+
+## Adaptive Policy
+
+This function assumes that the demand is deterministic and that the number of levels is adaptive.
+The decision variable is the number of levels of the garage to build.
+If we consider a single SOW, we can calculate the NPV of the profits for a given policy.
 
 ```{julia} 
 let
@@ -104,14 +115,15 @@ let
     policies = [AdaptivePolicy(i) for i in n_levels_init]
     println(policies)
     profits = [simulate(sow, policy) for policy in policies]
-    plot(
+    plot( 
         n_levels_init,
         profits;
         ylabel="NPV Profits [Million USD]",
         xlabel="Number of levels",
         legend=false,
-        title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth",
+        title="$(sow.n_years) Year Horizon, $(sow.discount_rate) Discount, $(sow.demand_growth_rate) Demand Growth, Adaptive Policy, Deterministic Case",
         size=(800, 400),
+        titlefontsize=10,
         marker=:circle,
         xticks=n_levels_init,
     )
@@ -119,7 +131,7 @@ let
 end
 ```
 
-## Uncertainty
+# Stochastic Case
 
 Figure 1 of @deneufville_parkinggarage:2006 shows how the NPV changes when uncertainty is added to the model.
 Reproduce this figure, using our model.
@@ -128,65 +140,94 @@ Specifically:
 1. Generate an ensemble of SOWs. Justify how you are sampling the three parameters (`n_years`, `demand_growth_rate`, and `discount_rate`). I suggest to keep `n_years` as a constant, and perhaps to keep the discount rate constant as well.
 
 ```{julia}
-function generate_sows(n_sows::Int, n_years::Int, demand_growth_rate::Float64, discount_rate::Float64)
-    sow_list = []
-    for _ in 1:n_sows
-        push!(sow_list, ParkingGarageSOW(n_years=n_years, demand_growth_rate=demand_growth_rate, discount_rate=discount_rate))
+
+# Parameters
+n_years = 20 # Constant value for the number of years
+discount_rate = 0.12 # Constant value for the discount rate
+levels = 2:12  # Number of levels range
+
+# Function to generate an ensemble of SOWs
+function generate_sows(num_sows::Int)
+    sow_ensemble = []
+    for _ in 1:num_sows
+        # Sample demand growth rate from a normal distribution
+        demand_growth_rate = rand(Normal(80.0, 10.0))  # Mean = 80.0, Standard deviation = 10.0
+        
+        # Create sow object with sampled parameters
+        sow = ParkingGarageSOW(demand_growth_rate=demand_growth_rate,
+                                n_years=n_years,
+                                discount_rate=discount_rate)
+        
+        push!(sow_ensemble, sow) # update ensemble of SOWs
     end
-    return sow_list
+    return sow_ensemble
 end
 ```
 
 1. For each SOW, calculate the NPV for each policy.
-
-```{julia}
-
-# Define n_levels and create policies1 and policies2
-n_levels = 2:12
-policies1 = [AdaptivePolicy(i) for i in n_levels]
-policies2 = [StaticPolicy(i) for i in n_levels]
-
-# Create an array of AbstractPolicy type and append policies1 and policies2
-policies = AbstractPolicy[]
-append!(policies, policies1)
-append!(policies, policies2)
-
-# Now policies contains both AdaptivePolicy and StaticPolicy objects
-println(policies)
-
-```
-
 1. Calculate the average NPV for each number of levels and plot.
-
-```{julia}
-# Main function to simulate and plot NPV
-
-```
-
-# Adaptive case
-
-The static case sheds some light on decision making under uncertainty.
-However, the point of the @denuefville_parkinggarage:2006 paper is to illustrate the value of flexibility in decision making.
-
-To implement this, you'll need to get your hands a bit dirty with the source code.
-Specifically, you need to edit the `function get_action(x::ParkingGarageState, policy::AdaptivePolicy)` function in `ParkingGarage/src/sim.jl`.
-You'll need to use `if...else...end` statements to implement the adaptive policy.
-We'll talk about this in class!
 
 Once you've implemented this function, you can simulate the adaptive policy and compare the NPV to the static policy.
 Compare the fixed and adaptive policies for both the deterministic (single SOW) and stochastic (ensemble of SOWs) cases.
 Plot the NPV as a function of the number of levels for each case.
-
+- Deterministic: For all levels, the adaptive policy has a higher average NPV than the static policy
+- Stochastic: Up to 10 levels, the adaptive policy has a higher average NPV than the static policy. Above 10 levels, both policies have similar NPVs.
+- Overall, these pieces of data illustrate that implementing adaptive policy for a parking garage is the better choice as seen from its higher NPV. In other words, building a garage that is strong enough to construct more levels in the future (i.e., adaptive policy) is better financially than building a garage with a fixed number of levels that cannot be changed (i.e., static/fixed policy).
 
 ```{julia}
-# Parameters
-n_sows = 100
-n_years = 20
-demand_growth_rate = 80.0
-discount_rate = 0.12
-levels = 2:12  # Number of levels range
+# Function to calculate NPV for each policy for a given SOW
+function calculate_npv(sow, num_levels)
+    static_npv = simulate(sow, StaticPolicy(num_levels))
+    adaptive_npv = simulate(sow, AdaptivePolicy(num_levels))
+    return static_npv, adaptive_npv
+end
 
-# Simulate and plot NPV
+# Function to calculate average NPV for each number of levels across all SOWs
+function calculate_average_npv(ensemble, num_levels)
+    static_npv_avg = []
+    adaptive_npv_avg = []
+    # Across all SOWs, calculate NPV for each policy
+    for sow in ensemble
+        static_npv, adaptive_npv = calculate_npv(sow, num_levels)
+        push!(static_npv_avg, static_npv)
+        push!(adaptive_npv_avg, adaptive_npv)
+    end
+    # average NPV
+    static_npv_avg = mean(static_npv_avg)
+    adaptive_npv_avg = mean(adaptive_npv_avg)
+    return static_npv_avg, adaptive_npv_avg
+end
 
+# Number of SOWs -> can be changed
+num_sows = 10
+
+# Generate an ensemble of SOWs
+ensemble = generate_sows(num_sows)
+
+# Define the range of number of levels
+num_levels_range = 2:12
+
+# Calculate average NPV for each number of levels
+static_npv_avg_list = []
+adaptive_npv_avg_list = []
+
+for num_levels in num_levels_range
+    static_npv_avg, adaptive_npv_avg = calculate_average_npv(ensemble, num_levels)
+    push!(static_npv_avg_list, static_npv_avg)
+    push!(adaptive_npv_avg_list, adaptive_npv_avg)
+end
+
+# Plot the average NPV as a function of the number of levels for both policies
+plot(
+    num_levels_range, static_npv_avg_list, label="Static Policy",
+    xlabel="Number of Levels", ylabel="Average NPV",
+    title="Stochastic Cases: Average NPV vs. Number of Levels",
+    titlefontsize=10,
+    marker=:circle,
+)
+plot!(
+    num_levels_range, adaptive_npv_avg_list, label="Adaptive Policy",
+    marker=:square,
+)
 ```
 
